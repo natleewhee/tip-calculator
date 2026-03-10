@@ -1,371 +1,178 @@
+// components/CpfCalculator.jsx
+"use client";
+
 import { useState } from "react";
 
-const TIP_OPTIONS = [10, 15, 20];
+const CPF_RATES = {
+  below55:  { employee: 0.20, employer: 0.17, label: "Below 55" },
+  "55to60": { employee: 0.15, employer: 0.135, label: "55 – 60" },
+  "60to65": { employee: 0.095, employer: 0.09, label: "60 – 65" },
+  above65:  { employee: 0.05, employer: 0.075, label: "Above 65" },
+};
 
-export default function TipCalculator() {
-  const [bill, setBill] = useState("");
-  const [people, setPeople] = useState(1);
-  const [tip, setTip] = useState(15);
+const CPF_CEILING = 7400; // Ordinary Wage ceiling (2025)
 
-  const billNum = parseFloat(bill) || 0;
-  const tipAmount = billNum * (tip / 100);
-  const total = billNum + tipAmount;
-  const perPerson = people > 0 ? total / people : 0;
-  const tipPerPerson = people > 0 ? tipAmount / people : 0;
+function fmt(n) {
+  return n.toLocaleString("en-SG", { style: "currency", currency: "SGD", minimumFractionDigits: 2 });
+}
 
-  const fmt = (n) =>
-    n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+function Row({ label, value, sub, accent }) {
+  return (
+    <div className={`flex items-center justify-between py-3 border-b border-stone-100 last:border-0 ${accent ? "py-4" : ""}`}>
+      <div>
+        <p className={`font-medium ${accent ? "text-stone-800 text-base" : "text-stone-500 text-sm"}`}>{label}</p>
+        {sub && <p className="text-xs text-stone-400 mt-0.5">{sub}</p>}
+      </div>
+      <p className={`font-mono tabular-nums ${accent ? "text-emerald-600 text-xl font-bold" : "text-stone-700 text-sm font-medium"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export default function CpfCalculator() {
+  const [salary, setSalary] = useState("");
+  const [ageKey, setAgeKey] = useState("below55");
+
+  const rates = CPF_RATES[ageKey];
+  const gross = parseFloat(salary) || 0;
+  const cappedWage = Math.min(gross, CPF_CEILING);
+
+  const employeeContrib = cappedWage * rates.employee;
+  const employerContrib = cappedWage * rates.employer;
+  const totalContrib = employeeContrib + employerContrib;
+  const takeHome = gross - employeeContrib;
+  const totalCost = gross + employerContrib;
+
+  const hasValue = gross > 0;
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#f5f0e8",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontFamily: "'Georgia', 'Times New Roman', serif",
-      padding: "24px",
-    }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Mono:wght@300;400&display=swap');
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-6 font-sans">
+      {/* Google Font via next/font would be preferred in real Next.js; using @import here for portability */}
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap'); .cpf-root { font-family: 'Sora', sans-serif; }`}</style>
 
-        * { box-sizing: border-box; }
+      <div className="cpf-root w-full max-w-md">
 
-        .card {
-          background: #faf7f2;
-          border: 1px solid #ddd5c4;
-          border-radius: 2px;
-          width: 100%;
-          max-width: 420px;
-          overflow: hidden;
-          box-shadow: 0 2px 40px rgba(0,0,0,0.06);
-        }
-
-        .header {
-          background: #1c1612;
-          padding: 28px 32px 24px;
-          color: #f5f0e8;
-        }
-
-        .header-label {
-          font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #a89880;
-          margin-bottom: 6px;
-        }
-
-        .header-title {
-          font-family: 'Playfair Display', Georgia, serif;
-          font-size: 28px;
-          font-weight: 700;
-          color: #f5f0e8;
-          letter-spacing: -0.02em;
-          line-height: 1.1;
-        }
-
-        .body {
-          padding: 28px 32px;
-        }
-
-        .field {
-          margin-bottom: 22px;
-        }
-
-        .field-label {
-          font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          color: #8c7d6e;
-          margin-bottom: 8px;
-          display: block;
-        }
-
-        .input-wrap {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .prefix {
-          position: absolute;
-          left: 14px;
-          font-family: 'Playfair Display', serif;
-          font-size: 18px;
-          color: #b0a090;
-          pointer-events: none;
-          line-height: 1;
-        }
-
-        .input {
-          width: 100%;
-          padding: 12px 14px 12px 30px;
-          font-family: 'Playfair Display', serif;
-          font-size: 20px;
-          color: #1c1612;
-          background: #fff;
-          border: 1px solid #ddd5c4;
-          border-radius: 2px;
-          outline: none;
-          transition: border-color 0.15s;
-          appearance: none;
-          -webkit-appearance: none;
-        }
-
-        .input:focus {
-          border-color: #8c7d6e;
-        }
-
-        .input-plain {
-          padding-left: 14px;
-        }
-
-        .stepper {
-          display: flex;
-          align-items: center;
-          gap: 0;
-          border: 1px solid #ddd5c4;
-          border-radius: 2px;
-          overflow: hidden;
-          background: #fff;
-        }
-
-        .step-btn {
-          width: 44px;
-          height: 48px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #8c7d6e;
-          font-size: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: background 0.1s, color 0.1s;
-          flex-shrink: 0;
-          font-family: 'DM Mono', monospace;
-          line-height: 1;
-        }
-
-        .step-btn:hover { background: #f0ebe2; color: #1c1612; }
-        .step-btn:active { background: #e8e0d4; }
-
-        .step-val {
-          flex: 1;
-          text-align: center;
-          font-family: 'Playfair Display', serif;
-          font-size: 20px;
-          color: #1c1612;
-          border-left: 1px solid #ddd5c4;
-          border-right: 1px solid #ddd5c4;
-          padding: 12px 0;
-          line-height: 1.2;
-          user-select: none;
-        }
-
-        .tip-group {
-          display: flex;
-          gap: 8px;
-        }
-
-        .tip-btn {
-          flex: 1;
-          padding: 11px 0;
-          border: 1px solid #ddd5c4;
-          border-radius: 2px;
-          background: #fff;
-          cursor: pointer;
-          font-family: 'DM Mono', monospace;
-          font-size: 13px;
-          color: #8c7d6e;
-          letter-spacing: 0.05em;
-          transition: all 0.15s;
-        }
-
-        .tip-btn:hover { background: #f0ebe2; color: #1c1612; border-color: #b0a090; }
-
-        .tip-btn.active {
-          background: #1c1612;
-          border-color: #1c1612;
-          color: #f5f0e8;
-        }
-
-        .divider {
-          height: 1px;
-          background: #ddd5c4;
-          margin: 4px 0 24px;
-        }
-
-        .results {
-          background: #1c1612;
-          border-radius: 2px;
-          padding: 22px 24px;
-        }
-
-        .result-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          margin-bottom: 14px;
-        }
-
-        .result-row:last-child { margin-bottom: 0; }
-
-        .result-label {
-          font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          color: #7a6e62;
-        }
-
-        .result-val {
-          font-family: 'Playfair Display', serif;
-          font-size: 20px;
-          color: #f5f0e8;
-          letter-spacing: -0.01em;
-        }
-
-        .result-row.highlight .result-val {
-          font-size: 26px;
-          color: #e8d5a3;
-        }
-
-        .result-row.highlight .result-label {
-          color: #a89880;
-        }
-
-        .result-sep {
-          height: 1px;
-          background: #2e2820;
-          margin: 14px 0;
-        }
-
-        .reset-btn {
-          width: 100%;
-          margin-top: 20px;
-          padding: 12px;
-          background: none;
-          border: 1px solid #ddd5c4;
-          border-radius: 2px;
-          font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #b0a090;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .reset-btn:hover {
-          background: #f0ebe2;
-          color: #1c1612;
-          border-color: #b0a090;
-        }
-      `}</style>
-
-      <div className="card">
-        <div className="header">
-          <div className="header-label">Bill Calculator</div>
-          <div className="header-title">Tip & Split</div>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 bg-red-600 text-white text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full mb-4">
+            <span>🇸🇬</span> CPF Calculator
+          </div>
+          <h1 className="text-3xl font-bold text-stone-900 leading-tight">
+            Contribution<br />Breakdown
+          </h1>
+          <p className="text-stone-400 text-sm mt-2">
+            Based on CPF Board rates · OW ceiling S$7,400
+          </p>
         </div>
 
-        <div className="body">
-          {/* Bill Amount */}
-          <div className="field">
-            <label className="field-label">Bill Amount</label>
-            <div className="input-wrap">
-              <span className="prefix">$</span>
+        {/* Input card */}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 mb-4">
+
+          {/* Salary input */}
+          <div className="mb-5">
+            <label className="block text-xs font-semibold tracking-widest uppercase text-stone-400 mb-2">
+              Gross Monthly Salary
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-medium text-sm">S$</span>
               <input
-                className="input"
                 type="number"
                 min="0"
-                step="0.01"
+                step="100"
                 placeholder="0.00"
-                value={bill}
-                onChange={(e) => setBill(e.target.value)}
+                value={salary}
+                onChange={(e) => setSalary(e.target.value)}
+                className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-900 text-lg font-semibold placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
               />
             </div>
+            {gross > CPF_CEILING && (
+              <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                ⚠ CPF contributions capped at S$7,400 ordinary wage ceiling
+              </p>
+            )}
           </div>
 
-          {/* Tip % */}
-          <div className="field">
-            <label className="field-label">Tip Percentage</label>
-            <div className="tip-group">
-              {TIP_OPTIONS.map((t) => (
+          {/* Age group selector */}
+          <div>
+            <label className="block text-xs font-semibold tracking-widest uppercase text-stone-400 mb-2">
+              Age Group
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(CPF_RATES).map(([key, { label }]) => (
                 <button
-                  key={t}
-                  className={`tip-btn${tip === t ? " active" : ""}`}
-                  onClick={() => setTip(t)}
+                  key={key}
+                  onClick={() => setAgeKey(key)}
+                  className={`py-2.5 px-3 rounded-xl text-sm font-semibold border transition-all duration-150 ${
+                    ageKey === key
+                      ? "bg-red-600 border-red-600 text-white shadow-sm"
+                      : "bg-stone-50 border-stone-200 text-stone-500 hover:border-stone-300 hover:text-stone-700"
+                  }`}
                 >
-                  {t}%
+                  {label}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* People */}
-          <div className="field">
-            <label className="field-label">Split Between</label>
-            <div className="stepper">
-              <button
-                className="step-btn"
-                onClick={() => setPeople((p) => Math.max(1, p - 1))}
-                aria-label="decrease"
-              >−</button>
-              <div className="step-val">
-                {people} {people === 1 ? "person" : "people"}
-              </div>
-              <button
-                className="step-btn"
-                onClick={() => setPeople((p) => p + 1)}
-                aria-label="increase"
-              >+</button>
-            </div>
-          </div>
-
-          <div className="divider" />
-
-          {/* Results */}
-          <div className="results">
-            <div className="result-row">
-              <span className="result-label">Bill</span>
-              <span className="result-val">{fmt(billNum)}</span>
-            </div>
-            <div className="result-row">
-              <span className="result-label">Tip ({tip}%)</span>
-              <span className="result-val">{fmt(tipAmount)}</span>
-            </div>
-            <div className="result-sep" />
-            {people > 1 && (
-              <>
-                <div className="result-row">
-                  <span className="result-label">Tip / person</span>
-                  <span className="result-val">{fmt(tipPerPerson)}</span>
-                </div>
-                <div className="result-row highlight">
-                  <span className="result-label">Each pays</span>
-                  <span className="result-val">{fmt(perPerson)}</span>
-                </div>
-              </>
-            )}
-            {people === 1 && (
-              <div className="result-row highlight">
-                <span className="result-label">Total</span>
-                <span className="result-val">{fmt(total)}</span>
-              </div>
-            )}
-          </div>
-
-          <button
-            className="reset-btn"
-            onClick={() => { setBill(""); setPeople(1); setTip(15); }}
-          >
-            Reset
-          </button>
         </div>
+
+        {/* Rate badges */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { label: "Employee", val: `${(rates.employee * 100).toFixed(1)}%` },
+            { label: "Employer", val: `${(rates.employer * 100).toFixed(1)}%` },
+            { label: "Combined", val: `${((rates.employee + rates.employer) * 100).toFixed(1)}%` },
+          ].map(({ label, val }) => (
+            <div key={label} className="flex-1 bg-white rounded-xl border border-stone-200 p-3 text-center">
+              <p className="text-xs text-stone-400 font-medium">{label}</p>
+              <p className="text-base font-bold text-stone-800 font-mono mt-0.5">{val}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Results card */}
+        <div className={`bg-white rounded-2xl border shadow-sm p-6 transition-opacity duration-300 ${hasValue ? "opacity-100 border-stone-200" : "opacity-40 border-stone-100"}`}>
+          <p className="text-xs font-semibold tracking-widest uppercase text-stone-400 mb-1">Breakdown</p>
+
+          <Row
+            label="Gross Salary"
+            value={fmt(gross)}
+          />
+          <Row
+            label="Employee CPF"
+            sub={`${(rates.employee * 100).toFixed(1)}% deducted from your pay`}
+            value={`− ${fmt(employeeContrib)}`}
+          />
+          <Row
+            label="Employer CPF"
+            sub={`${(rates.employer * 100).toFixed(1)}% contributed by employer`}
+            value={`+ ${fmt(employerContrib)}`}
+          />
+
+          <div className="my-2 border-t border-dashed border-stone-200" />
+
+          <Row
+            label="Take-Home Pay"
+            sub="Gross minus employee CPF"
+            value={fmt(takeHome)}
+            accent
+          />
+
+          <div className="mt-4 pt-4 border-t border-stone-100 grid grid-cols-2 gap-3">
+            <div className="bg-stone-50 rounded-xl p-3">
+              <p className="text-xs text-stone-400 font-medium">Total CPF (both)</p>
+              <p className="text-sm font-bold text-stone-700 font-mono mt-0.5">{fmt(totalContrib)}</p>
+            </div>
+            <div className="bg-stone-50 rounded-xl p-3">
+              <p className="text-xs text-stone-400 font-medium">Total Employer Cost</p>
+              <p className="text-sm font-bold text-stone-700 font-mono mt-0.5">{fmt(totalCost)}</p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-stone-300 mt-5">
+          Ordinary wages only · Does not include AW · Rates effective 2025
+        </p>
       </div>
     </div>
   );
